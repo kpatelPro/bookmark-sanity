@@ -86,8 +86,8 @@ function flattenNode(bookmarkNode) {
     console.log('flattenNode()');
     var movePromises = [];
     moveBookmarks(bookmarkNode, bookmarkNode, movePromises);
-    return Promise.all(movePromises).then(
-        new Promise((resolve) => {
+    return Promise.all(movePromises).then(() => {
+        return new Promise((resolve) => {
             // refetch bookmarkNode and prune it
             chrome.bookmarks.getSubTree(
                 bookmarkNode.id,
@@ -96,7 +96,7 @@ function flattenNode(bookmarkNode) {
                     bookmarkTreeNodes.map((node) => { pruneEmptyFolders(node, prunePromises); });
                     Promise.all(prunePromises).then(resolve);
                 });
-            }));
+            })});
 }
 
 function moveBookmarks(bookmarkNode, destinationNode, promises) {
@@ -253,8 +253,8 @@ function splitNode(bookmarkNode) {
                                 movePromises.push(moveBookmarkPromise(folder[fc].id, newFolder.id));
                             }
                             console.log('waiting to populate' + newFolder.title);
-                            Promise.all(movePromises);
-                            console.log('done populating' + newFolder.title);
+                            return Promise.all(movePromises);
+                            //console.log('done populating' + newFolder.title);
                         }
                     })(folders[splitFolderName(f)]))
             );
