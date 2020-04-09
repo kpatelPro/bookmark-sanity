@@ -1,12 +1,13 @@
 $(function() {
     $('#search').change(function(){
-        $('#bookmarks').empty();
-        dumpBookmarks($('#search').val().toLowerCase());
+        dumpBookmarks();
     });
 });
 
-function dumpBookmarks(query) {
+function dumpBookmarks() {
+    var query = $('#search').val().toLowerCase();
     console.log('dumpBookmarks(' + query + ')');
+    $('#bookmarks').empty();
     var bookmarkTreeNodes = chrome.bookmarks.getTree(
         function(bookmarkTreeNodes) {
             $('#bookmarks').append(dumpTreeNodes(bookmarkTreeNodes, query));
@@ -53,13 +54,15 @@ function dumpNode(bookmarkNode, query) {
         span.hover(function() {
             span.append(options);
             $('#flatten').click(function() {
-                flattenNode(bookmarkNode);
+                flattenNode(bookmarkNode).then(dumpBookmarks);
             });
             $('#prune').click(function() {
-                pruneEmptyFolders(bookmarkNode);
+                var promises = [];
+                pruneEmptyFolders(bookmarkNode, promises);
+                Promise.all(promises).then(dumpBookmarks);
             });
             $('#split').click(function() {
-                splitNode(bookmarkNode);
+               splitNode(bookmarkNode).then(dumpBookmarks);
             });
             options.fadeIn();
         },
@@ -81,46 +84,113 @@ function dumpNode(bookmarkNode, query) {
 
 function flattenNode(bookmarkNode) {
     console.log('flattenNode()');
-    moveBookmarks(bookmarkNode, bookmarkNode);
+    var movePromises = [];
+    moveBookmarks(bookmarkNode, bookmarkNode, movePromises);
+    return Promise.all(movePromises).then(
+        new Promise((resolve) => {
+            // refetch bookmarkNode and prune it
+            chrome.bookmarks.getSubTree(
+                bookmarkNode.id,
+                function(bookmarkTreeNodes) {
+                    var prunePromises = [];
+                    bookmarkTreeNodes.map((node) => { pruneEmptyFolders(node, prunePromises); });
+                    Promise.all(prunePromises).then(resolve);
+                });
+            }));
 }
 
-function moveBookmarks(bookmarkNode, destinationNode) {
+function moveBookmarks(bookmarkNode, destinationNode, promises) {
 
     if (bookmarkNode.children && bookmarkNode.children.length > 0) {
         //console.log('flattening: ' + bookmarkNode.title);
         var i;
         for (i = 0; i < bookmarkNode.children.length; i++) {
-            moveBookmarks(bookmarkNode.children[i], destinationNode);
+            moveBookmarks(bookmarkNode.children[i], destinationNode, promises);
         }
     } else if (bookmarkNode.url) {
         //console.log(destinationNode.title + ' <- ' + bookmarkNode.title);
-        chrome.bookmarks.move(bookmarkNode.id, {parentId:destinationNode.id});        
+        promises.push(moveBookmarkPromise(bookmarkNode.id, destinationNode.id));
     }
 }
 
-function pruneEmptyFolders(bookmarkNode) {
-    console.log('pruneEmptyFolders()');
+function pruneEmptyFolders(bookmarkNode, promises) {
+    console.log('pruneEmptyFolders: ' + bookmarkNode.title + ' ' + bookmarkNode.id);
+    var hasBookmarkChildren = nodeIsBookmark(bookmarkNode);
     if (bookmarkNode.children) {
         var c = 0;
         for (c=0; c < bookmarkNode.children.length; ++c) {
             var child = bookmarkNode.children[c];
-            console.log('pef: ' + child.id + ', ' + child.url);
-            if (!child.url || 0 === child.url.length) {
-                if (!child.children || child.children.length == 0) {
-                    chrome.bookmarks.remove(child.id);
-                }
+            if (nodeIsBookmark(child)) {
+                hasBookmarkChildren = true;
+            } else if (nodeIsFolder(child)) {
+                hasBookmarkChildren |= pruneEmptyFolders(child, promises);
             }
         }
+        if (!hasBookmarkChildren) {
+            // remove the entire node
+            promises.push(removeTreePromise(bookmarkNode.id));
+        }
     }
+    return hasBookmarkChildren;
+}
+
+function nodeIsFolder(bookmarkNode) {
+    if (bookmarkNode.children) {
+        return true;
+    }
+    return false;
+}
+
+function nodeIsBookmark(bookmarkNode) {
+    if (bookmarkNode.url) {
+        return true;
+    }
+    return false;
+}
+
+function moveBookmarkPromise(id, destinationId) {
+    console.log('moving: ' + id + ' + -> ' + destinationId);
+    return new Promise((resolve) => {
+        chrome.bookmarks.move(id, {parentId:destinationId},
+            (result) => { console.log('moved: ' + id); resolve(result) });
+    });
+}
+
+function removeBookmarkPromise(id) {
+    console.log('removing: ' + id);
+    return new Promise((resolve) => {
+        chrome.bookmarks.remove(id,
+            (result) => { console.log('removed: ' + id); resolve(result) });
+    });
+}
+
+function removeTreePromise(id) {
+    console.log('removing: ' + id);
+    return new Promise((resolve) => {
+        chrome.bookmarks.removeTree(id,
+            (result) => { console.log('removed: ' + id); resolve(result) });
+    });
+}
+
+function createFolderPromise(params) {
+    console.log('creating folder: ' + params.title);
+    return new Promise((resolve) => {
+        chrome.bookmarks.create(params,
+            (newFolder) => { 
+                console.log('created: ' + newFolder.title + ' ' + newFolder.id); 
+                resolve(newFolder) 
+            });
+    });
 }
 
 function splitNode(bookmarkNode) {
     // TODO
     console.log('splitNode()');
+    var promises = [];
     if (bookmarkNode.children && bookmarkNode.children.length > 0) {
 
         // config
-        let folderChildCount = 14;
+        let folderChildCount = 3; //14;
 
         // count the children
         let c;
@@ -132,6 +202,7 @@ function splitNode(bookmarkNode) {
                 childCount++;
             }
         }
+        //console.log('childCount: ' + childCount);
 
         // sort the children
 
@@ -142,10 +213,11 @@ function splitNode(bookmarkNode) {
         for (f=0; f<folderCount; ++f) {
             folders[splitFolderName(f)] = [];
         }
+        //console.log('folderCount: ' + folderCount);
 
-        // computer folder contents
+        // compute folder contents
         var fc=0;
-        for (c=0, f=0; c<childCount; ++c)
+        for (c=0, f=0; c<bookmarkNode.children.length; ++c)
         {
             var child = bookmarkNode.children[c];
             if (child.url) {
@@ -162,27 +234,33 @@ function splitNode(bookmarkNode) {
         //console.log(folders);
         for (f=0; f<folderCount; ++f) {
             // create new folder
-            chrome.bookmarks.create(
+            promises.push(
+                createFolderPromise(
                 {   
                     'parentId': bookmarkNode.id,
                     'title' : splitFolderName(f)     
-                },
-                (function(folder) { 
-                    // populate new folder
-                    return function(newFolder) 
-                    {
-                        //console.log(folder);
-                        var fc;
-                        for (fc=0; fc<folder.length; ++fc)
+                }).then((function(folder) { 
+                        // populate new folder
+                        return function(newFolder) 
                         {
-                            //console.log(folder[fc].id + ' -> ' + newFolder.id);
-                            chrome.bookmarks.move(folder[fc].id, {parentId:newFolder.id});
+                            console.log('created ' + newFolder.title + ' callback');
+                            console.log('populate with: ' + folder.map((node)=>{return node.id}));
+                            var fc;
+                            var movePromises = [];
+                            for (fc=0; fc<folder.length; ++fc)
+                            {
+                                console.log(folder[fc].id + ' -> ' + newFolder.id);
+                                movePromises.push(moveBookmarkPromise(folder[fc].id, newFolder.id));
+                            }
+                            console.log('waiting to populate' + newFolder.title);
+                            Promise.all(movePromises);
+                            console.log('done populating' + newFolder.title);
                         }
-                    }
-                })(folders[splitFolderName(f)])
+                    })(folders[splitFolderName(f)]))
             );
         }
     }
+    return Promise.all(promises);
 }
 
 function splitFolderName(f) {
