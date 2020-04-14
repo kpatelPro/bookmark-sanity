@@ -5,18 +5,18 @@ $(function() {
 });
 
 function dumpBookmarks() {
-    var query = $('#search').val().toLowerCase();
+    let query = $('#search').val().toLowerCase();
     console.log('dumpBookmarks(' + query + ')');
     $('#bookmarks').empty();
-    var bookmarkTreeNodes = chrome.bookmarks.getTree(
+    let bookmarkTreeNodes = chrome.bookmarks.getTree(
         function(bookmarkTreeNodes) {
             $('#bookmarks').append(dumpTreeNodes(bookmarkTreeNodes, query));
         });
 }
 
 function dumpTreeNodes(bookmarkNodes, query) {
-    var list = $('<ul>');
-    var i;
+    let list = $('<ul>');
+    let i;
     for (i = 0; i < bookmarkNodes.length; i++) {
         list.append(dumpNode(bookmarkNodes[i], query));
     }
@@ -26,6 +26,7 @@ function dumpTreeNodes(bookmarkNodes, query) {
 function dumpNode(bookmarkNode, query) {
 
     // dump this node
+    let span = $('<span>');
     if (bookmarkNode.title) {
         // if not folder && is query
         if (query && !bookmarkNode.children) {
@@ -36,7 +37,7 @@ function dumpNode(bookmarkNode, query) {
         }
 
         // create a clickable link
-        var anchor = $('<a>');
+        let anchor = $('<a>');
         anchor.attr('href', bookmarkNode.url);
         //anchor.text(bookmarkNode.title);
         anchor.text(bookmarkNode.title + ' (id:'+bookmarkNode.id+')');
@@ -46,8 +47,7 @@ function dumpNode(bookmarkNode, query) {
             }
         });
 
-        var span = $('<span>');
-        var options = bookmarkNode.children ?
+        let options = bookmarkNode.children ?
             $('</span><span>[<a href="#" id="flatten">Flatten</a>|<a href="#" id="prune">Prune</a>]</span>|<a href="#" id="split">Split</a>]</span>') :
             $('<span></span>');
         
@@ -57,7 +57,7 @@ function dumpNode(bookmarkNode, query) {
                 flattenNode(bookmarkNode).then(dumpBookmarks);
             });
             $('#prune').click(function() {
-                var promises = [];
+                let promises = [];
                 pruneEmptyFolders(bookmarkNode, promises);
                 Promise.all(promises).then(dumpBookmarks);
             });
@@ -75,7 +75,7 @@ function dumpNode(bookmarkNode, query) {
     }
 
     // dump children
-    var li = $(bookmarkNode.title ? '<li>' : '<div>').append(span);
+    let li = $(bookmarkNode.title ? '<li>' : '<div>').append(span);
     if (bookmarkNode.children && bookmarkNode.children.length > 0) {
         li.append(dumpTreeNodes(bookmarkNode.children, query));
     }
@@ -84,7 +84,7 @@ function dumpNode(bookmarkNode, query) {
 
 function flattenNode(bookmarkNode) {
     console.log('flattenNode()');
-    var movePromises = [];
+    let movePromises = [];
     moveBookmarks(bookmarkNode, bookmarkNode, movePromises);
     return Promise.all(movePromises).then(() => {
         return new Promise((resolve) => {
@@ -92,7 +92,7 @@ function flattenNode(bookmarkNode) {
             chrome.bookmarks.getSubTree(
                 bookmarkNode.id,
                 function(bookmarkTreeNodes) {
-                    var prunePromises = [];
+                    let prunePromises = [];
                     bookmarkTreeNodes.map((node) => { pruneEmptyFolders(node, prunePromises); });
                     Promise.all(prunePromises).then(resolve);
                 });
@@ -103,7 +103,7 @@ function moveBookmarks(bookmarkNode, destinationNode, promises) {
 
     if (bookmarkNode.children && bookmarkNode.children.length > 0) {
         //console.log('flattening: ' + bookmarkNode.title);
-        var i;
+        let i;
         for (i = 0; i < bookmarkNode.children.length; i++) {
             moveBookmarks(bookmarkNode.children[i], destinationNode, promises);
         }
@@ -115,11 +115,11 @@ function moveBookmarks(bookmarkNode, destinationNode, promises) {
 
 function pruneEmptyFolders(bookmarkNode, promises) {
     console.log('pruneEmptyFolders: ' + bookmarkNode.title + ' ' + bookmarkNode.id);
-    var hasBookmarkChildren = nodeIsBookmark(bookmarkNode);
+    let hasBookmarkChildren = nodeIsBookmark(bookmarkNode);
     if (bookmarkNode.children) {
-        var c = 0;
+        let c = 0;
         for (c=0; c < bookmarkNode.children.length; ++c) {
-            var child = bookmarkNode.children[c];
+            let child = bookmarkNode.children[c];
             if (nodeIsBookmark(child)) {
                 hasBookmarkChildren = true;
             } else if (nodeIsFolder(child)) {
@@ -186,7 +186,7 @@ function createFolderPromise(params) {
 function splitNode(bookmarkNode) {
     // TODO
     console.log('splitNode()');
-    var promises = [];
+    let promises = [];
     if (bookmarkNode.children && bookmarkNode.children.length > 0) {
 
         // config
@@ -197,7 +197,7 @@ function splitNode(bookmarkNode) {
         let childCount = 0;
         for (c=0; c<bookmarkNode.children.length; ++c)
         {
-            var child = bookmarkNode.children[c];
+            let child = bookmarkNode.children[c];
             if (child.url) {
                 childCount++;
             }
@@ -216,10 +216,10 @@ function splitNode(bookmarkNode) {
         //console.log('folderCount: ' + folderCount);
 
         // compute folder contents
-        var fc=0;
+        let fc=0;
         for (c=0, f=0; c<bookmarkNode.children.length; ++c)
         {
-            var child = bookmarkNode.children[c];
+            let child = bookmarkNode.children[c];
             if (child.url) {
                 if (fc >= folderChildCount) {
                     f++;
@@ -245,8 +245,8 @@ function splitNode(bookmarkNode) {
                         {
                             console.log('created ' + newFolder.title + ' callback');
                             console.log('populate with: ' + folder.map((node)=>{return node.id}));
-                            var fc;
-                            var movePromises = [];
+                            let fc;
+                            let movePromises = [];
                             for (fc=0; fc<folder.length; ++fc)
                             {
                                 console.log(folder[fc].id + ' -> ' + newFolder.id);
