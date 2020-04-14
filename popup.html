@@ -4,8 +4,16 @@
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
   <script src="popup.js"></script>
 </head>
-<body style="width: 500px">
+<body style="width:100%">
     <div>Search: <input id="search"></div>
     <div id="bookmarks"></div>
 </body>
+<footer id="options" style="position:fixed;bottom:0px;width:100%;background-color:lightblue;">
+  <h3 id="optionsWarning">Verify options first!</h3>
+  <div id="divOptions">
+    <h4>Split Options</h4>
+    <label for="splitMax">Max bookmarks per folder:</label>
+    <input id="splitMax" type="number" min="1" max="100" value="10">
+  </div>
+</footer>
 </html>

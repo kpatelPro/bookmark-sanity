@@ -24,7 +24,6 @@ function dumpTreeNodes(bookmarkNodes, query) {
 }
 
 function dumpNode(bookmarkNode, query) {
-
     // dump this node
     let span = $('<span>');
     if (bookmarkNode.title) {
@@ -62,7 +61,8 @@ function dumpNode(bookmarkNode, query) {
                 Promise.all(promises).then(dumpBookmarks);
             });
             $('#split').click(function() {
-               splitNode(bookmarkNode).then(dumpBookmarks);
+               splitNode(bookmarkNode, $('#splitMax').val())
+               .then(dumpBookmarks);
             });
             options.fadeIn();
         },
@@ -183,14 +183,18 @@ function createFolderPromise(params) {
     });
 }
 
-function splitNode(bookmarkNode) {
-    // TODO
+function splitNode(bookmarkNode, folderChildCount) {
     console.log('splitNode()');
+
+    // error checking
+    folderChildCount = parseInt(folderChildCount);
+    if (!(folderChildCount > 0)) {
+        alert("Split Max must be more than 0.");
+        return;
+    }
+
     let promises = [];
     if (bookmarkNode.children && bookmarkNode.children.length > 0) {
-
-        // config
-        let folderChildCount = 3; //14;
 
         // count the children
         let c;
