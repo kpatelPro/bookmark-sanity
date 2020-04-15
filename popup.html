@@ -9,11 +9,31 @@
     <div id="bookmarks"></div>
 </body>
 <footer id="options" style="position:fixed;bottom:0px;width:100%;background-color:lightblue;">
-  <h3 id="optionsWarning">Verify options first!</h3>
-  <div id="divOptions">
-    <h4>Split Options</h4>
-    <label for="splitMax">Max bookmarks per folder:</label>
-    <input id="splitMax" type="number" min="1" max="100" value="10">
+  <div id="flattenOptions" style="display:none">
+    <h4>Flatten Options - click again to confirm</h4>
+    <label for="flattenRecursive">Flatten Recursively</label>
+    <input id="flattenRecursive" type="checkbox" checked>
+    <p></p>
+  </div>
+  <div id="pruneOptions" style="display:none">
+    <h4>Prune Options - click again to confirm</h4>
+    <label for="pruneRecursive">Prune Recursively</label>
+    <input id="pruneRecursive" type="checkbox" checked>
+    <p></p>
+  </div>
+  <div id="splitOptions" style="display:none">
+    <h4>Split Options - click again to confirm</h4>
+    <div>
+      <label for="splitByDomain">Split to Domain</label>
+      <input id="splitByDomain" type="radio" name="splitBy" "value="domain">
+    </div>
+    <div>
+      <label for="splitByCount">Split to Max Size</label>
+      <input id="splitByCount" type="radio" name="splitBy" value="count" checked>
+      <label for="splitMax">Max bookmarks per folder:</label>
+      <input id="splitMax" type="number" min="1" max="100" value="10">
+    </div>
+    <p></p>
   </div>
 </footer>
 </html>

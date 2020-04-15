@@ -53,16 +53,22 @@ function dumpNode(bookmarkNode, query) {
         span.hover(function() {
             span.append(options);
             $('#flatten').click(function() {
-                flattenNode(bookmarkNode).then(dumpBookmarks);
+                if (readyOptions("flatten")) {
+                    flattenNode(bookmarkNode).then(dumpBookmarks);
+                }
             });
             $('#prune').click(function() {
-                let promises = [];
-                pruneEmptyFolders(bookmarkNode, promises);
-                Promise.all(promises).then(dumpBookmarks);
+                if (readyOptions("prune")) {
+                    let promises = [];
+                    pruneEmptyFolders(bookmarkNode, promises);
+                    Promise.all(promises).then(dumpBookmarks);
+                }
             });
             $('#split').click(function() {
-               splitNode(bookmarkNode, $('#splitMax').val())
-               .then(dumpBookmarks);
+                if (readyOptions("split")) {
+                    splitNode(bookmarkNode, $('#splitMax').val())
+                    .then(dumpBookmarks);
+                }
             });
             options.fadeIn();
         },
@@ -80,6 +86,28 @@ function dumpNode(bookmarkNode, query) {
         li.append(dumpTreeNodes(bookmarkNode.children, query));
     }
     return li;
+}
+
+function readyOptions(optionsCategory) {
+    // fetch options div
+    let options = $("#" + optionsCategory + "Options");
+    // for now, no options is red light
+    if (!options) {
+        return false;
+    }
+    // if options were not visible, show them now
+    if (options.css("display") == "none") {
+        // hide other options blocks
+        $("#options").children("div").each(function(i) {
+            $(this).css("display", "none");
+        });
+        
+        // show this one
+        options.css("display", "block");
+        return false;
+    }
+    // options are ready
+    return true;
 }
 
 function flattenNode(bookmarkNode) {
