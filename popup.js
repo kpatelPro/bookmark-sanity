@@ -243,6 +243,42 @@ function splitNode(bookmarkNode, splitBy, folderBookmarkMax) {
         // create lists to compute folder contents
         let folders = {};
 
+        if (splitBy == "domain")
+        {
+            // split by domain
+            for (c=0; c<bookmarkNode.children.length; ++c)
+            {
+                let child = bookmarkNode.children[c];
+                if (child.url) {
+                    let domain = extractDomainName(child.url);
+                    if (!(domain in folders)) {
+                        folders[domain] = [];
+                    }
+                    folders[domain].push(child);
+                }
+            }
+            // split domains by count
+            for (let domain in folders)
+            {
+                let domainContents = folders[domain];
+                if (domainContents.length > folderBookmarkMax) {
+                    let fc = 0;
+                    for (c=0; c<domainContents.length; ++c) {
+                        let child = domainContents[c];
+                        let fcName = domain + '-' + fc.toString().padStart(2,'0');
+                        if (!(fcName in folders)) {
+                            folders[fcName] = [];
+                        }
+                        folders[fcName].push(child);
+                        if (folders[fcName].length >= folderBookmarkMax) {
+                            fc++;
+                        }
+                    }
+                    delete folders[domain];
+                }
+            }
+        }
+
         if (splitBy == "count")
         {
             let folderCount = Math.ceil(childCount / folderBookmarkMax);
@@ -305,6 +341,28 @@ function splitNode(bookmarkNode, splitBy, folderBookmarkMax) {
 
 function splitFolderName(f) {
     return '__' + String(f).padStart(2, '0') + '__';
+}
+
+function extractDomainName(url) {
+    //find & remove protocol (http, ftp, etc.) and get hostname
+    var hostname;
+    if (url.indexOf("//") > -1) {
+        hostname = url.split('/')[2];
+    } else {
+        hostname = url.split('/')[0];
+    }
+
+    //find & remove port number
+    hostname = hostname.split(':')[0];
+    //find & remove "?"
+    hostname = hostname.split('?')[0];
+
+    // trim leading "www."
+    if (hostname.indexOf("www.") == 0) {
+        hostname = hostname.substring(4);
+    }
+
+    return hostname;
 }
 
 document.addEventListener('DOMContentLoaded', function() {
