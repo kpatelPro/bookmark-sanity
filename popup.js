@@ -66,7 +66,9 @@ function dumpNode(bookmarkNode, query) {
             });
             $('#split').click(function() {
                 if (readyOptions("split")) {
-                    splitNode(bookmarkNode, $('#splitMax').val())
+                    let splitBy = $("input[name='splitBy']:checked").val();
+                    let splitMax = $('#splitMax').val();
+                    splitNode(bookmarkNode, splitBy, splitMax)
                     .then(dumpBookmarks);
                 }
             });
@@ -211,12 +213,12 @@ function createFolderPromise(params) {
     });
 }
 
-function splitNode(bookmarkNode, folderChildCount) {
+function splitNode(bookmarkNode, splitBy, folderBookmarkMax) {
     console.log('splitNode()');
 
     // error checking
-    folderChildCount = parseInt(folderChildCount);
-    if (!(folderChildCount > 0)) {
+    folderBookmarkMax = parseInt(folderBookmarkMax);
+    if (!(folderBookmarkMax > 0)) {
         alert("Split Max must be more than 0.");
         return;
     }
@@ -240,37 +242,43 @@ function splitNode(bookmarkNode, folderChildCount) {
 
         // create lists to compute folder contents
         let folders = {};
-        let folderCount = Math.ceil(childCount / folderChildCount);
-        let f=0;
-        for (f=0; f<folderCount; ++f) {
-            folders[splitFolderName(f)] = [];
-        }
-        //console.log('folderCount: ' + folderCount);
 
-        // compute folder contents
-        let fc=0;
-        for (c=0, f=0; c<bookmarkNode.children.length; ++c)
+        if (splitBy == "count")
         {
-            let child = bookmarkNode.children[c];
-            if (child.url) {
-                if (fc >= folderChildCount) {
-                    f++;
-                    fc = 0;
+            let folderCount = Math.ceil(childCount / folderBookmarkMax);
+            let f=0;
+            for (f=0; f<folderCount; ++f) {
+                folders[splitFolderName(f)] = [];
+            }
+            //console.log('folderCount: ' + folderCount);
+
+            // compute folder contents
+            let fc=0;
+            for (c=0, f=0; c<bookmarkNode.children.length; ++c)
+            {
+                let child = bookmarkNode.children[c];
+                if (child.url) {
+                    if (fc >= folderBookmarkMax) {
+                        f++;
+                        fc = 0;
+                    }
+                    folders[splitFolderName(f)].push(child);
+                    fc++;
                 }
-                folders[splitFolderName(f)].push(child);
-                fc++;
             }
         }
 
         // create folders and populate them
         //console.log(folders);
-        for (f=0; f<folderCount; ++f) {
+        for (let folderName in folders) {
+            let folderContents = folders[folderName];
+
             // create new folder
             promises.push(
                 createFolderPromise(
                 {   
                     'parentId': bookmarkNode.id,
-                    'title' : splitFolderName(f)     
+                    'title' : folderName    
                 }).then((function(folder) { 
                         // populate new folder
                         return function(newFolder) 
@@ -288,7 +296,7 @@ function splitNode(bookmarkNode, folderChildCount) {
                             return Promise.all(movePromises);
                             //console.log('done populating' + newFolder.title);
                         }
-                    })(folders[splitFolderName(f)]))
+                    })(folderContents))
             );
         }
     }
